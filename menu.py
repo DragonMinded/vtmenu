@@ -692,7 +692,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--settings",
-        default="settings.ini",
+        default=os.path.realpath(os.path.join(os.path.realpath(__file__), "../settings.ini")),
         type=str,
         help="Settings file to parse for menu entries",
     )
