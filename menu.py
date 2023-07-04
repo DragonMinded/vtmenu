@@ -1,10 +1,9 @@
 import argparse
 import configparser
 import os
-import random
 import sys
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from vtpy import Terminal, TerminalException
 
@@ -20,11 +19,6 @@ class NullAction(Action):
 class SelectAction(Action):
     def __init__(self, executable: str) -> None:
         self.executable = executable
-
-
-class HelpAction(Action):
-    def __init__(self, pageType: str) -> None:
-        self.pageType = pageType
 
 
 class ExitAction(Action):
@@ -402,7 +396,7 @@ class Renderer:
         self.terminal.setAutoWrap()
         self.terminal.sendCommand(Terminal.SET_NORMAL)
         self.terminal.sendCommand(Terminal.SET_BOLD)
-        self.terminal.sendText(f"Dragon's Lair Control Terminal Main Menu")
+        self.terminal.sendText("Dragon's Lair Control Terminal Main Menu")
         self.terminal.sendCommand(Terminal.SET_NORMAL)
         self.terminal.clearAutoWrap()
 
@@ -415,9 +409,9 @@ class Renderer:
         self.options = options
 
         text = (
-            "The following programs are available. To run, type \"!\" followed " +
-            "by the selection number and press enter.\n\n" +
-            "\n".join(entries)
+            'The following programs are available. To run, type "!" followed '
+            + "by the selection number and press enter.\n\n"
+            + "\n".join(entries)
         )
         self.renderer = TextRendererCore(self.terminal, 3, self.terminal.rows - 2)
         self.renderer.displayText(text)
@@ -609,19 +603,22 @@ def main(settings: str, port: str, baudrate: int) -> int:
 
     settingsDict: Dict[str, str] = {}
     for section in cfg.sections():
-        for (key, val) in cfg.items(section):
+        for key, val in cfg.items(section):
             if key == "cmd":
                 settingsDict[section] = val
 
     exiting = False
     while not exiting:
+        # The runnable command, if we have something to run.
+        cmd: Optional[str] = None
+
         # First, render the current page to the display.
         terminal, renderer = spawnTerminalAndRenderer(port, baudrate)
         renderer.displayMenu(settingsDict)
         renderer.clearInput()
 
         try:
-            while not exiting:
+            while cmd is None and not exiting:
                 # Grab input, de-duplicate held down up/down presses so they don't queue up.
                 # This can cause the entire message loop to desync as we pile up requests to
                 # scroll the screen, ultimately leading in rendering issues and a crash.
@@ -633,8 +630,8 @@ def main(settings: str, port: str, baudrate: int) -> int:
                 if inputVal:
                     action = renderer.processInput(inputVal)
                     if isinstance(action, SelectAction):
-                        # TODO
-                        pass
+                        renderer.displayError("Loading requested program...")
+                        cmd = action.executable
                     elif isinstance(action, SettingAction):
                         if action.setting in {"cols", "columns"}:
                             if action.value not in {"80", "132"}:
@@ -667,8 +664,13 @@ def main(settings: str, port: str, baudrate: int) -> int:
             print("Got request to end session!")
             exiting = True
 
-    # Restore the screen before exiting.
-    terminal.reset()
+        if cmd is not None:
+            # Execute the command itself, wait for the command to finish, and then redisplay.
+            del terminal
+            os.system(cmd)
+        else:
+            # Restore the screen before exiting.
+            terminal.reset()
 
     return 0
 
