@@ -5,7 +5,7 @@ import sys
 import time
 from typing import Dict, List, Optional, Tuple
 
-from vtpy import Terminal, TerminalException
+from vtpy import SerialTerminal, Terminal, TerminalException
 
 
 class Action:
@@ -586,7 +586,7 @@ def spawnTerminalAndRenderer(port: str, baudrate: int) -> Tuple[Terminal, Render
 
     while True:
         try:
-            terminal = Terminal(port, baudrate)
+            terminal = SerialTerminal(port, baudrate)
             print("SUCCESS!")
 
             break
