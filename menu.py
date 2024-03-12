@@ -580,13 +580,13 @@ class Renderer:
         return None
 
 
-def spawnTerminalAndRenderer(port: str, baudrate: int) -> Tuple[Terminal, Renderer]:
+def spawnTerminalAndRenderer(port: str, baudrate: int, flow: bool) -> Tuple[Terminal, Renderer]:
     print("Attempting to contact VT-100...", end="")
     sys.stdout.flush()
 
     while True:
         try:
-            terminal = SerialTerminal(port, baudrate)
+            terminal = SerialTerminal(port, baudrate, flowControl=flow)
             print("SUCCESS!")
 
             break
@@ -600,7 +600,7 @@ def spawnTerminalAndRenderer(port: str, baudrate: int) -> Tuple[Terminal, Render
     return terminal, Renderer(terminal)
 
 
-def main(settings: str, port: str, baudrate: int) -> int:
+def main(settings: str, port: str, baudrate: int, flow: bool) -> int:
     # Parse out options.
     cfg = configparser.ConfigParser()
     cfg.read(settings)
@@ -617,7 +617,7 @@ def main(settings: str, port: str, baudrate: int) -> int:
         cmd: Optional[str] = None
 
         # First, render the current page to the display.
-        terminal, renderer = spawnTerminalAndRenderer(port, baudrate)
+        terminal, renderer = spawnTerminalAndRenderer(port, baudrate, flow)
         renderer.displayMenu(settingsDict)
         renderer.clearInput()
 
@@ -695,6 +695,11 @@ if __name__ == "__main__":
         help="Baud rate to use with VT-100, defaults to 9600",
     )
     parser.add_argument(
+        "--flow",
+        action="store_true",
+        help="Enable software-based flow control (XON/XOFF)",
+    )
+    parser.add_argument(
         "--settings",
         default=os.path.realpath(
             os.path.join(os.path.realpath(__file__), "../settings.ini")
@@ -704,4 +709,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    sys.exit(main(args.settings, args.port, args.baud))
+    sys.exit(main(args.settings, args.port, args.baud, args.flow))
