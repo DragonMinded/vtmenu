@@ -383,7 +383,7 @@ class Renderer:
         self.lastError = ""
         self.renderer = RendererCore(terminal, 3, self.terminal.rows - 2)
 
-    def displayMenu(self, settings: Dict[str, str]) -> None:
+    def displayMenu(self, title: str, settings: Dict[str, str]) -> None:
         # Render status bar at the bottom.
         self.clearInput()
 
@@ -397,7 +397,7 @@ class Renderer:
         self.terminal.setAutoWrap()
         self.terminal.sendCommand(Terminal.SET_NORMAL)
         self.terminal.sendCommand(Terminal.SET_BOLD)
-        self.terminal.sendText("Dragon's Lair Control Terminal Main Menu")
+        self.terminal.sendText(title)
         self.terminal.sendCommand(Terminal.SET_NORMAL)
         self.terminal.clearAutoWrap()
 
@@ -600,7 +600,7 @@ def spawnTerminalAndRenderer(port: str, baudrate: int, flow: bool) -> Tuple[Term
     return terminal, Renderer(terminal)
 
 
-def main(settings: str, port: str, baudrate: int, flow: bool) -> int:
+def main(title: str, settings: str, port: str, baudrate: int, flow: bool) -> int:
     # Parse out options.
     cfg = configparser.ConfigParser()
     cfg.read(settings)
@@ -618,7 +618,7 @@ def main(settings: str, port: str, baudrate: int, flow: bool) -> int:
 
         # First, render the current page to the display.
         terminal, renderer = spawnTerminalAndRenderer(port, baudrate, flow)
-        renderer.displayMenu(settingsDict)
+        renderer.displayMenu(title, settingsDict)
         renderer.clearInput()
 
         try:
@@ -700,6 +700,12 @@ if __name__ == "__main__":
         help="Enable software-based flow control (XON/XOFF)",
     )
     parser.add_argument(
+        "--title",
+        default="Main Menu",
+        type=str,
+        help="The title of the menu as displayed at the top",
+    )
+    parser.add_argument(
         "--settings",
         default=os.path.realpath(
             os.path.join(os.path.realpath(__file__), "../settings.ini")
@@ -709,4 +715,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    sys.exit(main(args.settings, args.port, args.baud, args.flow))
+    sys.exit(main(args.title, args.settings, args.port, args.baud, args.flow))
