@@ -430,8 +430,11 @@ class Entry:
                     # This should be accumulated.
                     accumed += ch
                 else:
-                    # This is done, go back to normal.
-                    seen.append("$" + accumed)
+                    # This is done, go back to normal. We add a special case for if
+                    # we didn't accumulate anything, so shell scripts can use syntax
+                    # similar to ${ENV} without escaping the dollar sign.
+                    if accumed:
+                        seen.append("$" + accumed)
                     accumed = ""
                     state = "normal"
 
