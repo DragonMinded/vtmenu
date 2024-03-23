@@ -1,6 +1,7 @@
 import argparse
 import configparser
 import os
+import subprocess
 import sys
 import time
 from typing import Dict, List, Optional, Tuple
@@ -822,7 +823,7 @@ def main(title: str, settings: str, port: str, baudrate: int, flow: bool) -> int
         if cmd is not None:
             # Execute the command itself, wait for the command to finish, and then redisplay.
             del terminal
-            os.system(cmd)
+            subprocess.run(['/bin/bash', "-c", cmd])
         else:
             # Restore the screen before exiting.
             terminal.reset()
