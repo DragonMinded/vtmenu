@@ -374,16 +374,100 @@ class TextRendererCore(RendererCore):
                 displayed += 1
 
 
+class Entry:
+    def __init__(self, title: str, cmd: str, params: Dict[str, str]) -> None:
+        self.title = title
+        self.__cmd = cmd
+        self.__params: Dict[str, str] = params
+
+    @property
+    def cmd(self) -> str:
+        # Unescape $$.
+        out = ""
+        state = "normal"
+        for ch in self.__cmd:
+            if state == "normal":
+                if ch == "$":
+                    # Next one might be a $ as well, so we unescape.
+                    state = "accumulate"
+                else:
+                    # Not interesting, just accumulate.
+                    out += ch
+            elif state == "accumulate":
+                if ch == "$":
+                    # Two $$s in a row, output a single one.
+                    out += ch
+                    state = "normal"
+                else:
+                    # One $ and anything else, output that $ and the anything else.
+                    out += "$" + ch
+                    state = "normal"
+
+        return out
+
+    @property
+    def params(self) -> Dict[str, str]:
+        # Figure out params in the command.
+        seen: List[str] = []
+
+        state = "normal"
+        accumed = ""
+        for ch in self.__cmd:
+            if state == "normal":
+                if ch == "$":
+                    # We need to accumulate numbers or a "*"
+                    state = "accumulate"
+            elif state == "accumulate":
+                if ch == "$" and (not accumed):
+                    # This is just escaped, ignore it.
+                    state = "normal"
+                elif ch == "*" and (not accumed):
+                    # This is a "$*" for all params.
+                    seen.append("$*")
+                    accumed = ""
+                    state = "normal"
+                elif ch in "1234567890":
+                    # This should be accumulated.
+                    accumed += ch
+                else:
+                    # This is done, go back to normal.
+                    seen.append("$" + accumed)
+                    accumed = ""
+                    state = "normal"
+
+        if accumed:
+            # Ran off the end.
+            seen.append("$" + accumed)
+            accumed = ""
+
+        # Return them, with their names if available.
+        out: Dict[str, str] = {}
+        for param in seen:
+            if param in out:
+                # Respecified, skip.
+                continue
+
+            if param in self.__params:
+                out[param] = self.__params[param]
+            else:
+                if param == "$*":
+                    out[param] = "TEXT"
+                else:
+                    out[param] = "PARAM" + param[1:]
+
+        return out
+
+
 class Renderer:
     def __init__(self, terminal: Terminal) -> None:
         self.terminal = terminal
         self.input = ""
         self.cursorPos = 1
-        self.options: List[str] = []
+        self.options: List[Entry] = []
         self.lastError = ""
         self.renderer = RendererCore(terminal, 3, self.terminal.rows - 2)
 
-    def displayMenu(self, title: str, settings: Dict[str, str]) -> None:
+    def displayMenu(self, title: str, settings: List[Entry]) -> None:
         # Render status bar at the bottom.
         self.clearInput()
 
@@ -403,10 +487,14 @@ class Renderer:
 
         # Render out the text of the page.
         entries: List[str] = []
-        options: List[str] = []
-        for index, (key, value) in enumerate(settings.items()):
-            entries.append(f"[!{index + 1}] {key}")
-            options.append(value)
+        options: List[Entry] = []
+        for index, entry in enumerate(settings):
+            if entry.params:
+                params = [f"<{entry.params[p]}>" for p in entry.params]
+                entries.append(f"[!{index + 1} {' '.join(params)}] {entry.title}")
+            else:
+                entries.append(f"[!{index + 1}] {entry.title}")
+            options.append(entry)
         self.options = options
 
         text = (
@@ -522,13 +610,41 @@ class Renderer:
             if actual[0] == "!":
                 # Link navigation.
                 try:
-                    link = int(actual[1:].strip())
+                    linkAndParams = actual[1:].strip().split()
+                    link = int(linkAndParams[0])
                     link -= 1
 
                     if link < 0 or link >= len(self.options):
                         self.displayError("Unknown menu option!")
                     else:
-                        return SelectAction(self.options[link])
+                        # If they have params, figure them all out.
+                        params = self.options[link].params
+
+                        if not params:
+                            if len(linkAndParams) != 1:
+                                self.displayError("Option does not take parameters!")
+                            else:
+                                return SelectAction(self.options[link].cmd)
+                        else:
+                            actualParams: Dict[str, str] = {}
+                            good = True
+                            for param in params:
+                                if param == "$*":
+                                    actualParams[param] = " ".join(linkAndParams[1:])
+                                else:
+                                    which = int(param[1:])
+                                    if which < 1 or which >= len(linkAndParams):
+                                        self.displayError(f"Option requires parameter {params[param]}")
+                                        good = False
+                                        break
+                                    else:
+                                        actualParams[param] = linkAndParams[which]
+
+                            if good:
+                                cmd = self.options[link].cmd
+                                for key, val in actualParams.items():
+                                    cmd = cmd.replace(key, val)
+                                return SelectAction(cmd)
                 except ValueError:
                     self.displayError("Invalid link navigation request!")
             elif actual == "set" or actual.startswith("set "):
@@ -605,11 +721,18 @@ def main(title: str, settings: str, port: str, baudrate: int, flow: bool) -> int
     cfg = configparser.ConfigParser()
     cfg.read(settings)
 
-    settingsDict: Dict[str, str] = {}
+    settingsList: List[Entry] = []
     for section in cfg.sections():
+        command = "/bin/true"
+        params: Dict[str, str] = {}
+
         for key, val in cfg.items(section):
             if key == "cmd":
-                settingsDict[section] = val
+                command = val
+            elif key.startswith("$"):
+                params[key] = val
+
+        settingsList.append(Entry(section, command, params))
 
     exiting = False
     while not exiting:
@@ -618,7 +741,7 @@ def main(title: str, settings: str, port: str, baudrate: int, flow: bool) -> int
 
         # First, render the current page to the display.
         terminal, renderer = spawnTerminalAndRenderer(port, baudrate, flow)
-        renderer.displayMenu(title, settingsDict)
+        renderer.displayMenu(title, settingsList)
         renderer.clearInput()
 
         try:
@@ -645,13 +768,13 @@ def main(title: str, settings: str, port: str, baudrate: int, flow: bool) -> int
                             elif action.value == "80":
                                 if terminal.columns != 80:
                                     terminal.set80Columns()
-                                    renderer.displayMenu(settingsDict)
+                                    renderer.displayMenu(title, settingsList)
                                 else:
                                     renderer.clearInput()
                             elif action.value == "132":
                                 if terminal.columns != 132:
                                     terminal.set132Columns()
-                                    renderer.displayMenu(settingsDict)
+                                    renderer.displayMenu(title, settingsList)
                                 else:
                                     renderer.clearInput()
                         else:
