@@ -9,4 +9,4 @@ cmd = /home/username/shell_script "$1"
 $1 = PARAM
 ```
 
-A user would launch the first command by typing `!1`<RETURN>. They would launch the second by typing `!2 param`<RETURN> and then the `param` would be passed as a parameter to the script. Note that params cannot start with a dash and cannot contain the characters `;`, `>`, `<`, `|` or `&`. To include the whole line after the exlaimation mark, use the syntax `$*`.
+A user would launch the first command by typing `!1`<RETURN>. They would launch the second by typing `!2 param`<RETURN> and then the `param` would be passed as a parameter to the script. Note that params cannot start with a dash and cannot contain the characters `;`, `>`, `<`, `)`, `(`, `|` or `&`. To include the whole line after the exlaimation mark, use the syntax `$*`.

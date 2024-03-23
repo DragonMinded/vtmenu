@@ -458,6 +458,13 @@ class Entry:
         return out
 
 
+def invalidChars(param: str) -> bool:
+    for ch in ";<>()|&":
+        if ch in param:
+            return True
+    return False
+
+
 class Renderer:
     def __init__(self, terminal: Terminal) -> None:
         self.terminal = terminal
@@ -630,7 +637,13 @@ class Renderer:
                             good = True
                             for param in params:
                                 if param == "$*":
-                                    actualParams[param] = " ".join(linkAndParams[1:])
+                                    val = " ".join(linkAndParams[1:])
+                                    if invalidChars(val):
+                                        self.displayError(f"Parameter {params[param]} cannot take value {val}")
+                                        good = False
+                                        break
+
+                                    actualParams[param] = val
                                 else:
                                     which = int(param[1:])
                                     if which < 1 or which >= len(linkAndParams):
@@ -638,6 +651,11 @@ class Renderer:
                                         good = False
                                         break
                                     else:
+                                        if invalidChars(linkAndParams[which]):
+                                            self.displayError(f"Parameter {params[param]} cannot take value {linkAndParams[which]}")
+                                            good = False
+                                            break
+
                                         actualParams[param] = linkAndParams[which]
 
                             if good:
