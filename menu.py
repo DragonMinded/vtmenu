@@ -497,7 +497,14 @@ class Renderer:
         options: List[Entry] = []
         for index, entry in enumerate(settings):
             if entry.params:
-                params = [f"<{entry.params[p]}>" for p in entry.params]
+                def key(param: str) -> int:
+                    param = param[1:]
+                    try:
+                        return int(param)
+                    except ValueError:
+                        return 0xFFFFFFFF
+
+                params = [f"<{entry.params[p]}>" for p in sorted(entry.params, key=key)]
                 entries.append(f"[!{index + 1} {' '.join(params)}] {entry.title}")
             else:
                 entries.append(f"[!{index + 1}] {entry.title}")
