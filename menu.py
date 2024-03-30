@@ -824,9 +824,9 @@ def main(title: str, settings: str, port: str, baudrate: int, flow: bool) -> int
             # Execute the command itself, wait for the command to finish, and then redisplay.
             del terminal
             subprocess.run(['/bin/bash', "-c", cmd])
-        else:
-            # Restore the screen before exiting.
-            terminal.reset()
+
+    # Restore the screen before exiting.
+    terminal.reset()
 
     return 0
 
