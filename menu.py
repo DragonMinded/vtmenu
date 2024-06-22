@@ -197,7 +197,7 @@ class TextRendererCore(RendererCore):
             self.terminal.sendCommand(Terminal.SAVE_CURSOR)
             self.terminal.sendCommand(Terminal.SET_NORMAL)
             self.terminal.setScrollRegion(self.top, self.bottom)
-            self.terminal.moveCursor(self.bottom, 1)
+            self.terminal.moveCursor((self.bottom - self.top) + 1, 1)
             self.terminal.sendCommand(Terminal.MOVE_CURSOR_DOWN)
             self._displayText(self.line + (self.rows - 1), self.line + self.rows, False)
             self.terminal.clearScrollRegion()
