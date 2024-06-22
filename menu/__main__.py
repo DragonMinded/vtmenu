@@ -831,7 +831,7 @@ def main(title: str, settings: str, port: str, baudrate: int, flow: bool) -> int
     return 0
 
 
-if __name__ == "__main__":
+def cli() -> None:
     parser = argparse.ArgumentParser(description="VT-100 terminal menu")
 
     parser.add_argument(
@@ -868,3 +868,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     sys.exit(main(args.title, args.settings, args.port, args.baud, args.flow))
+
+
+if __name__ == "__main__":
+    cli()
